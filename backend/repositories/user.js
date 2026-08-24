@@ -28,6 +28,13 @@ async function updateUserName(userId, newName) {
   return result.rows[0];
 }
 
+async function updateUserRule(userId, newRole) {
+  return db.query("UPDATE users SET role = $1 WHERE id = $2 RETURNING *", [
+    newRole,
+    userId,
+  ]);
+}
+
 async function updateUserPassword(userId, newPassword) {
   return db.query("UPDATE users SET password = $1 WHERE id = $2 RETURNING id", [
     newPassword,
@@ -40,5 +47,6 @@ module.exports = {
   findUserById,
   saveNewUser,
   updateUserName,
+  updateUserRule,
   updateUserPassword,
 };
