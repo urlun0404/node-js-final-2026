@@ -1,6 +1,11 @@
 const express = require("express");
 const router = express.Router();
+const authMiddleware = require("../../../middlewares/auth");
 const {
+  saveNewBookingCreditPackage,
+} = require("../../../repositories/booking");
+const {
+  findCreditPackageById,
   deleteCreditPackageById,
   findAllCreditPackages,
   saveNewCreditPackage,
@@ -33,12 +38,12 @@ router.post("/", async (req, res) => {
       .json({ status: "failed", message: "欄位未填寫正確" });
   }
 
-  const existingCreditPackages = await findAllCreditPackages();
-  if (hasDuplicateData(existingCreditPackages, name)) {
-    return res.status(409).json({ status: "failed", message: "資料重複" });
-  }
-
   try {
+    const existingCreditPackages = await findAllCreditPackages();
+    if (existingCreditPackages.some((pkg) => pkg.name === name)) {
+      return res.status(409).json({ status: "failed", message: "資料重複" });
+    }
+
     const newCreditPackage = { name, credit_amount, price };
     const savedCreditPackage = await saveNewCreditPackage(newCreditPackage);
 
@@ -73,6 +78,25 @@ router.delete("/:id", async (req, res) => {
       .status(500)
       .json({ status: "failed", message: "刪除資料失敗，請稍候再試。" });
   }
+});
+
+// 購買堂數方案 M5
+router.post("/:creditPackageId", authMiddleware, async (req, res) => {
+  const { creditPackageId } = req.params;
+  const foundCreditPacklage = await findCreditPackageById(creditPackageId);
+  if (!foundCreditPacklage) {
+    return res.status(400).json({ status: "failed", message: "ID錯誤" });
+  }
+  const newBooking = await saveNewBookingCreditPackage(
+    req.user.id,
+    foundCreditPacklage,
+  );
+  if (!newBooking) {
+    return res
+      .status(500)
+      .json({ status: "failed", message: "資料更新失敗，請稍候再試。" });
+  }
+  res.status(200).json({ status: "success", data: null });
 });
 
 module.exports = router;
