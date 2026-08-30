@@ -34,6 +34,87 @@ async function findCoachesWithUserName(per, page) {
   return result.rows;
 }
 
+const CHAR_MONTH_TO_NUMBER = {
+  january: 1,
+  february: 2,
+  march: 3,
+  april: 4,
+  may: 5,
+  june: 6,
+  july: 7,
+  august: 8,
+  september: 9,
+  october: 10,
+  november: 11,
+  december: 12,
+};
+
+// 教練今年當月營收。lowerCharMonth 為英文小寫月份（例：june = 今年 6 月）。
+async function findCoachMonthRevenue(coachUserId, lowerCharMonth) {
+  const monthNumber = CHAR_MONTH_TO_NUMBER[lowerCharMonth];
+  if (!monthNumber) {
+    return 0;
+  }
+
+  const coachCoursesResult = await db.query(
+    "SELECT id FROM courses WHERE user_id = $1",
+    [coachUserId],
+  );
+  const courseIds = coachCoursesResult.rows.map((row) => row.id);
+  if (courseIds.length === 0) {
+    return {
+      revenue: 0,
+      participants: 0,
+      course_count: 0,
+    };
+  }
+
+  const enrollmentCountResult = await db.query(
+    "SELECT COUNT(*) AS count, COUNT(DISTINCT user_id) AS participants FROM enrollments WHERE cancelled_at IS NULL AND course_id = ANY($1) AND EXTRACT(YEAR FROM created_at) = EXTRACT(YEAR FROM NOW()) AND EXTRACT(MONTH FROM created_at) = $2",
+    [courseIds, monthNumber],
+  );
+
+  // enrollmentCount = 該月未取消報名筆數
+  const enrollmentCount = parseInt(enrollmentCountResult.rows[0].count, 10);
+
+  // participantCount = 該月不重複的報名學員數（同一人報多堂算 1 人）
+  const participantCount = parseInt(
+    enrollmentCountResult.rows[0].participants,
+    10,
+  );
+
+  if (enrollmentCount === 0) {
+    return {
+      revenue: 0,
+      participants: 0,
+      course_count: 0,
+    };
+  }
+
+  // 單堂均價 = 全部方案的 Σprice ÷ Σcredit_amount
+  const avgResult = await db.query(
+    "SELECT SUM(price) AS total_price, SUM(credit_amount) AS total_credit FROM packages",
+  );
+  const totalPrice = parseInt(avgResult.rows[0].total_price, 10) || 0;
+  const totalCredit = parseInt(avgResult.rows[0].total_credit, 10) || 0;
+  if (totalCredit === 0) {
+    return {
+      revenue: 0,
+      participants: 0,
+      course_count: 0,
+    };
+  }
+  const avgPricePerCredit = totalPrice / totalCredit;
+
+  // 營收 = floor(該月未取消報名筆數 × 單堂均價)
+  const revenue = Math.floor(enrollmentCount * avgPricePerCredit);
+  return {
+    revenue,
+    participants: participantCount,
+    course_count: enrollmentCount,
+  };
+}
+
 async function saveNewCoach(coach) {
   const result = await db.query(
     "INSERT INTO coaches (user_id, experience_years, description, profile_image_url) VALUES ($1, $2, $3, $4) RETURNING id, user_id, experience_years, description, profile_image_url, description, created_at, updated_at",
@@ -95,6 +176,7 @@ module.exports = {
   findCoachById,
   findCoachByUserId,
   findCoachesWithUserName,
+  findCoachMonthRevenue,
   saveNewCoach,
   updateCoachById,
 };

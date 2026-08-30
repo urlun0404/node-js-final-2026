@@ -14,8 +14,10 @@ const {
 const { isValidNumber } = require("../../../../utils/validation");
 
 const coursesRouter = require("./courses");
+const revenueRouter = require("./revenue");
 
 router.use("/courses", authMiddleware, coursesRouter);
+router.use("/revenue", authMiddleware, revenueRouter);
 
 // 將指定使用者升級為教練
 router.post("/:userId", async (req, res) => {
