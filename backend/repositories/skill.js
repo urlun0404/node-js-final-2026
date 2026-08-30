@@ -13,6 +13,18 @@ async function findAllSkills() {
   return result.rows;
 }
 
+async function findSkillById(skillId) {
+  return db.query("SELECT id, name FROM skills WHERE id = $1", [skillId]);
+}
+
+async function findSkillNameByIds(skillIds) {
+  const result = await db.query(
+    "SELECT ARRAY_AGG(name) AS skill_names FROM skills WHERE id = ANY($1)",
+    [skillIds],
+  );
+  return result.rows[0].skill_names ?? [];
+}
+
 async function saveNewSkill(skill) {
   const results = await db.query(
     "INSERT INTO skills (name) VALUES ($1) RETURNING *",
@@ -29,4 +41,10 @@ async function deleteSkillById(skillId) {
   return { raw: result.rows, affected: result.rowCount };
 }
 
-module.exports = { findAllSkills, saveNewSkill, deleteSkillById };
+module.exports = {
+  findAllSkills,
+  findSkillById,
+  findSkillNameByIds,
+  saveNewSkill,
+  deleteSkillById,
+};

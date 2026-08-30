@@ -1,23 +1,11 @@
 const db = require("../db");
 
-const { findUserById: _findUserById } = require("./user");
-
-const data = [
-  {
-    id: "a1c5e8f2-3b7d-4e9a-8c6f-2d4b9e1a7c3f",
-    user_id: "f3b7d2c1-8a4e-4c6f-9d2b-5e1a7c3f9b8d",
-    experience_years: 3,
-    description: "瑜伽與皮拉提斯雙修，擅長帶初學者",
-    profile_image_url: "https://example.com/avatar.png",
-    created_at: "2026-08-20T10:00:00.000Z",
-    updated_at: "2026-08-20T10:00:00.000Z",
-    // foreign key
-    skill_ids: [
-      "2a4b6c8d-1e2f-4a5b-9c8d-0e1f2a3b4c5d",
-      "5f0faccc-5a7b-4799-a2ae-9e17bbfd1b6b",
-    ],
-  },
-];
+async function findCoachById(coachId) {
+  const result = await db.query("SELECT * FROM coaches WHERE id = $1", [
+    coachId,
+  ]);
+  return result.rows[0] ?? null;
+}
 
 async function findCoachByUserId(userId) {
   const foundCoachResult = await db.query(
@@ -36,6 +24,14 @@ async function findCoachByUserId(userId) {
     profile_image_url: foundCoach.profile_image_url,
     skill_ids: foundSkillsResult.rows,
   };
+}
+
+async function findCoachesWithUserName(per, page) {
+  const result = await db.query(
+    "SELECT c.id, c.user_id, u.name FROM coaches c JOIN users u ON c.user_id = u.id LIMIT $1 OFFSET $2",
+    [per, (page - 1) * per],
+  );
+  return result.rows;
 }
 
 async function saveNewCoach(coach) {
@@ -96,7 +92,9 @@ async function updateCoachById(coachId, updatedData) {
 }
 
 module.exports = {
+  findCoachById,
   findCoachByUserId,
+  findCoachesWithUserName,
   saveNewCoach,
   updateCoachById,
 };

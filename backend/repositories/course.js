@@ -27,6 +27,22 @@ async function findCoursesByUserId(userId) {
   return results.rows;
 }
 
+async function findUnfinishedCoursesByUserId(userId) {
+  const result = await db.query(
+    "SELECT c.*, s.name AS skill_name, u.name AS coach_name FROM courses c JOIN skills s ON c.skill_id = s.id JOIN users u ON c.user_id = u.id WHERE c.user_id = $1 AND c.end_at > NOW()",
+    [userId],
+  );
+  return result.rows;
+}
+
+async function findOngoingCourses() {
+  const result = await db.query(
+    "SELECT c.*, s.name AS skill_name, u.name AS coach_name FROM courses c JOIN skills s ON c.skill_id = s.id JOIN users u ON c.user_id = u.id WHERE c.start_at <= NOW() AND c.end_at > NOW()",
+  );
+
+  return result.rows;
+}
+
 async function saveNewCourse(course) {
   const result = await db.query(
     "INSERT INTO courses (user_id, skill_id, name, description, start_at, end_at, max_participants, meeting_url) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *",
@@ -64,6 +80,8 @@ async function updateCourseById(courseId, updatedData) {
 module.exports = {
   findCourseById,
   findCoursesByUserId,
+  findUnfinishedCoursesByUserId,
+  findOngoingCourses,
   saveNewCourse,
   updateCourseById,
 };
